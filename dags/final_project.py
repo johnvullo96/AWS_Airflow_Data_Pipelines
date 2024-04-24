@@ -4,17 +4,17 @@ import os
 from airflow.decorators import dag,task
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.operators.dummy_operator import DummyOperator
-from stage_redshift import StageToRedshiftOperator
-from load_fact import LoadFactOperator
-from load_dimension import LoadDimensionOperator
-from data_quality import DataQualityOperator
-from sql_files.sql_queries import createSchema
-from sql_files.final_project_sql_statements import SqlQueries
+from operators.stage_redshift import StageToRedshiftOperator
+from operators.load_fact import LoadFactOperator
+from operators.load_dimension import LoadDimensionOperator
+from operators.data_quality import DataQualityOperator
+from helpers.sql_queries import schema
+from helpers.sql_queries import sqlqueries
 from airflow.models import Variable
 
-S3_SONG_KEY = 'song_data'
-S3_LOG_KEY = 'log_data/{execution_date.year}/{execution_date.month}'
-LOG_JSON_PATH = f's3://{S3_BUCKET}/log_json_path.json'
+S3_SONG_KEY = 'song-data'
+S3_LOG_KEY = 'log_data'
+S3_LOG_JSON_PATH = 's3://udacity-dend/log_json_path.json'
 
 default_args = {
     'owner': 'udacity',
@@ -35,47 +35,47 @@ default_args = {
 def final_project():
 
     @task()
-    def create_schema(*args, **kwargs):
+    def drop_and_create_tables(*args, **kwargs):
         redshift_hook = PostgresHook("redshift")
-        redshift_hook.run(createSchema.create)
+        redshift_hook.run(schema.drop_and_create_tables)
 
-    create_schema = create_schema()
+    drop_and_create_tables = drop_and_create_tables()
 
     start_operator = DummyOperator(task_id='Begin_execution')
 
     stage_events_to_redshift = StageToRedshiftOperator(
-        task_id="Stage_Events",
+        task_id="stage_events",
         redshift_conn_id="redshift",
         aws_credentials_id="aws_credentials",
         table="staging_events",
         s3_bucket = Variable.get('s3_bucket'),
-        s3_key = "log-data",
-        s3_format="FORMAT AS JSON 's3://udacity-dend/log_data'"
+        s3_key = S3_LOG_KEY,
+        s3_format=f"FORMAT AS JSON {S3_LOG_JSON_KEY}"
     )
 
     stage_songs_to_redshift = StageToRedshiftOperator(
-        task_id='Stage_songs',
+        task_id='stage_songs',
         redshift_conn_id="redshift",
         aws_credentials_id="aws_credentials",
         table="staging_songs",
         s3_bucket = Variable.get('s3_bucket'),
-        s3_key = "song-data/A/A/A",
+        s3_key = S3_SONG_KEY,
         s3_format="JSON 'auto'"
     )
 
     load_songplays_table = LoadFactOperator(
-        task_id='Load_songplays_fact_table',
+        task_id='load_songplays_fact_table',
         redshift_conn_id="redshift",
         table="songplays",
-        sql=SqlQueries.songplay_table_insert
+        sql=sqlqueries.songplay_table_insert
     )
 
     load_user_dimension_table = LoadDimensionOperator(
-        task_id='Load_user_dim_table',
+        task_id='load_user_dim_table',
         redshift_conn_id="redshift",
         table='users',
         truncate=True,
-        sql=SqlQueries.user_table_insert
+        sql=sqlqueries.user_table_insert
     )
 
     load_song_dimension_table = LoadDimensionOperator(
@@ -83,7 +83,7 @@ def final_project():
         redshift_conn_id="redshift",
         table='songs',
         truncate=True,
-        sql=SqlQueries.song_table_insert
+        sql=sqlqueries.song_table_insert
     )
 
     load_artist_dimension_table = LoadDimensionOperator(
@@ -91,7 +91,7 @@ def final_project():
         redshift_conn_id="redshift",
         table='artists',
         truncate=True,
-        sql=SqlQueries.artist_table_insert
+        sql=sqlqueries.artist_table_insert
     )
 
     load_time_dimension_table = LoadDimensionOperator(
@@ -99,20 +99,20 @@ def final_project():
         redshift_conn_id="redshift",
         table='time',
         truncate=True,
-        sql=SqlQueries.time_table_insert
+        sql=sqlqueries.time_table_insert
     )
 
     run_quality_checks = DataQualityOperator(
-        task_id='Run_data_quality_checks',
+        task_id='data_quality_checks',
         redshift_conn_id="redshift",
         tables=['songplays', 'users', 'songs', 'artists', 'time']
     )
 
-    end_operator = DummyOperator(task_id='End_execution')
+    end_operator = DummyOperator(task_id='end_execution')
 
-    create_schema >> start_operator
-    start_operator >> stage_events_to_redshift
-    start_operator >> stage_songs_to_redshift
+    start_operator >> drop_and_create_tables
+    drop_and_create_tables >> stage_events_to_redshift
+    drop_and_create_tables >> stage_songs_to_redshift
 
     stage_events_to_redshift >> load_songplays_table
     stage_songs_to_redshift >> load_songplays_table
