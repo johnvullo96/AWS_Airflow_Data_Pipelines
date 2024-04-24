@@ -4,13 +4,13 @@ import os
 from airflow.decorators import dag,task
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.operators.dummy_operator import DummyOperator
+from helpers.sql_queries import schema
+from helpers.sql_queries import sqlqueries
+from airflow.models import Variable
 from operators.stage_redshift import StageToRedshiftOperator
 from operators.load_fact import LoadFactOperator
 from operators.load_dimension import LoadDimensionOperator
 from operators.data_quality import DataQualityOperator
-from helpers.sql_queries import schema
-from helpers.sql_queries import sqlqueries
-from airflow.models import Variable
 
 S3_SONG_KEY = 'song-data'
 S3_LOG_KEY = 'log_data'
