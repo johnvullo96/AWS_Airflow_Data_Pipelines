@@ -27,7 +27,7 @@ class LoadDimensionOperator(BaseOperator):
             self.log.info(f"Truncating dimension table: {self.table}")
             redshift.run(f"TRUNCATE TABLE {self.table}") 
 
-        self.log.info(f"Loading dimention table '{self.table}' into Redshift")
+        self.log.info(f"Loading dimension table '{self.table}' into Redshift")
         formatted_sql = LoadDimensionOperator.insert_sql.format(
             self.table,
             self.sql
