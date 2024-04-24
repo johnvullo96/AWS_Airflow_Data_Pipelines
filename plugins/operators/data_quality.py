@@ -15,8 +15,9 @@ class DataQualityOperator(BaseOperator):
         super(DataQualityOperator, self).__init__(*args, **kwargs)
         self.redshift_conn_id = redshift_conn_id
         self.tables = tables
+                     
     def execute(self, context):
-        self.log.info('Data quality check started...') 
+        self.log.info('Starting data quality checks') 
         redshift = PostgresHook(postgres_conn_id = self.redshift_conn_id)    
         for table in self.tables:
             records = redshift.get_records(f'SELECT COUNT(*) FROM {table}')    
