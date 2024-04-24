@@ -4,9 +4,9 @@ import os
 from airflow.decorators import dag,task
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import Variable
 from helpers.sql_queries import schema
 from helpers.sql_queries import sqlqueries
-from airflow.models import Variable
 from operators.stage_redshift import StageToRedshiftOperator
 from operators.load_fact import LoadFactOperator
 from operators.load_dimension import LoadDimensionOperator
@@ -127,7 +127,5 @@ def final_project():
     load_artist_dimension_table >> run_quality_checks
     load_time_dimension_table >> run_quality_checks
     run_quality_checks >> end_operator
-
-
 
 final_project_dag = final_project()
